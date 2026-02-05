@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=My Product
+Comment=A bili-break-reminder application
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/bili-break-reminder.exe %u
+Terminal=false
+Type=Application
+Icon=bili-break-reminder.exe
+Categories=Utility;
+StartupWMClass=bili-break-reminder.exe
+
+ 

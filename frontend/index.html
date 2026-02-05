@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bili Break Reminder</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">⏱️</div>
+        <div class="brandText">
+          <div class="brandName">Bili Break Reminder</div>
+          <div class="brandSub">监测 B 站 Web 端和工作观看时间 · 每隔一段时间提醒休息</div>
+        </div>
+      </div>
+
+      <div class="topbarRight">
+        <div id="statusPill" class="pill pill--stopped">未运行</div>
+        <button id="btnStartStop" class="btn btn--primary">启动监控</button>
+      </div>
+    </header>
+
+    <main class="grid">
+      <!-- Left: Stats -->
+      <section class="card">
+        <div class="cardTitle">实时状态</div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="statLabel">本日累计</div>
+            <div id="statTotal" class="statValue">00:00</div>
+          </div>
+
+          <div class="stat">
+            <div class="statLabel">距离下次休息</div>
+            <div id="statNext" class="statValue">--:--</div>
+          </div>
+
+          <div class="stat">
+            <div class="statLabel">当前窗口</div>
+            <div id="statWindow" class="statMono">--</div>
+          </div>
+
+          <div class="stat">
+            <div class="statLabel">当前进程</div>
+            <div id="statProcess" class="statMono">--</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="btnManual" class="btn">手动提醒</button>
+          <button id="btnReset" class="btn btn--ghost">重置本日累计</button>
+        </div>
+
+        <div class="hint">
+          识别逻辑：前台活动窗口标题包含关键词（如 bilibili/哔哩哔哩/B站）且进程属于浏览器（可配置）。
+        </div>
+      </section>
+
+      <!-- Right: Settings -->
+      <section class="card">
+        <div class="cardTitle">设置面板</div>
+
+        <div class="formRow">
+          <label class="label" for="intervalNumber">提醒间隔（分钟）</label>
+
+          <div class="intervalRow">
+            <input id="intervalRange" class="range" type="range" min="1" max="240" step="1" value="30" />
+            <input id="intervalNumber" class="num" type="number" min="1" max="240" step="1" value="30" />
+          </div>
+
+          <div class="presetRow">
+            <button class="chip" data-preset="15">15</button>
+            <button class="chip" data-preset="20">20</button>
+            <button class="chip" data-preset="30">30</button>
+            <button class="chip" data-preset="45">45</button>
+            <button class="chip" data-preset="60">60</button>
+          </div>
+
+          <div class="note" id="intervalNote">最小 1 分钟（v3 修复：可往小调）</div>
+        </div>
+
+        <div class="split"></div>
+
+        <div class="formRow">
+          <div class="rowTitle">提醒方式</div>
+
+          <label class="toggle">
+            <input id="toggleSystem" type="checkbox" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">系统通知（Windows Toast）</span>
+          </label>
+
+          <label class="toggle">
+            <input id="togglePopup" type="checkbox" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">应用内弹窗</span>
+          </label>
+
+          <label class="toggle">
+            <input id="toggleSound" type="checkbox" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">声音提示（beep）</span>
+          </label>
+        </div>
+
+        <div class="split"></div>
+
+        <div class="formRow">
+          <div class="rowTitle">Snooze（稍后提醒）</div>
+          <div class="inline">
+            <label class="labelSmall" for="snoozeNumber">默认分钟数</label>
+            <input id="snoozeNumber" class="num" type="number" min="0" max="240" step="1" value="10" />
+            <button id="btnSnooze" class="btn">稍后提醒</button>
+          </div>
+          <div id="snoozeHint" class="note"></div>
+        </div>
+
+        <div class="split"></div>
+
+        <div class="formRow">
+          <div class="rowTitle">识别规则（更灵活）</div>
+
+          <label class="labelSmall" for="keywords">窗口标题关键词（逗号分隔）</label>
+          <textarea id="keywords" class="textarea" rows="2" placeholder="bilibili,哔哩哔哩,B站"></textarea>
+
+          <label class="labelSmall" for="processes">浏览器进程名（逗号分隔，可留空=不限制）</label>
+          <textarea id="processes" class="textarea" rows="2" placeholder="chrome.exe,msedge.exe,firefox.exe"></textarea>
+
+          <div class="note">小提示：Edge 是 <code>msedge.exe</code>，Chrome 是 <code>chrome.exe</code>。</div>
+        </div>
+
+        <div class="split"></div>
+
+        <div class="formRow">
+          <div class="rowTitle">系统</div>
+
+          <label class="toggle">
+            <input id="toggleAutoStart" type="checkbox" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">开机自启动（Windows）</span>
+          </label>
+
+          <div class="actions">
+            <button id="btnSave" class="btn btn--primary">保存设置</button>
+            <span id="saveHint" class="note"></span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Modal -->
+    <div id="modalOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <div class="modal">
+        <div class="modalTop">
+          <div class="modalIcon" aria-hidden="true">🧃</div>
+          <div class="modalTitleWrap">
+            <div id="modalTitle" class="modalTitle">该休息啦</div>
+            <div class="modalSub">起来走一走，喝口水，保护眼睛。</div>
+          </div>
+        </div>
+
+        <div id="modalBody" class="modalBody">--</div>
+
+        <div class="modalActions">
+          <button id="modalOk" class="btn btn--primary">知道了</button>
+          <button id="modalSnooze" class="btn">Snooze</button>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      v3 · UI 美化 + 间隔可往小调修复
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
