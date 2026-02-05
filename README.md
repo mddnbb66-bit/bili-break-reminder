@@ -55,7 +55,7 @@
 ## 📸 应用截图
 
 <div align="center">
-  <img src="https://via.placeholder.com/800x450.png?text=这里放你的软件运行截图" alt="应用截图" width="800" />
+  <img src="D:\img" alt="应用截图" width="800" />
 </div>
 
 ## 🚀 快速开始
