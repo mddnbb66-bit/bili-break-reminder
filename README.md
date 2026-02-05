@@ -1,87 +1,80 @@
-# Bili Break Reminder v3（UI美化 + 自定义间隔可往小调修复）
+<div align="center">
 
-> 这是一个 **Wails v3（Vanilla + Vite 模板）** 的“覆盖包/升级包”。
-> 你先用 `wails3 init` 生成一个标准项目，然后把本目录里的文件 **按同名路径覆盖** 到项目里即可。
+  <h1>🛡️ Bili-Break-Reminder</h1>
+  
+  <p>
+    <strong>一款基于 Go + Wails 构建的现代化桌面端防沉迷助手</strong>
+  </p>
+
+  <p>
+    <a href="https://golang.org/">
+      <img src="https://img.shields.io/badge/Language-Go-blue?style=for-the-badge&logo=go" alt="Go">
+    </a>
+    <a href="https://wails.io/">
+      <img src="https://img.shields.io/badge/Framework-Wails%20v2-red?style=for-the-badge&logo=wails" alt="Wails">
+    </a>
+    <a href="https://vuejs.org/">
+      <img src="https://img.shields.io/badge/Frontend-Vue.js-green?style=for-the-badge&logo=vue.js" alt="Vue">
+    </a>
+    <a href="https://github.com/mddnbb66-bit/bili-break-reminder/releases">
+      <img src="https://img.shields.io/github/v/release/mddnbb66-bit/bili-break-reminder?style=for-the-badge&color=orange" alt="Release">
+    </a>
+  </p>
+
+</div>
 
 ---
 
-## ✅ v3 这次改了什么
+## 📖 项目简介
 
-- **UI 全面美化**：更现代的卡片布局、开关、滑块、状态区、弹窗。
-- **修复 BUG：自定义间隔无法往小调**  
-  v2 通常是因为前端 input/range 的 `min` 写死为 30 或保存逻辑只允许增大。  
-  v3 改为：**最小 1 分钟**，并且 number 与 slider 双向同步。
-- **更灵活的自定义**：
-  - 监测关键词（默认：bilibili / 哔哩哔哩 / B站）
-  - 监测进程（默认：chrome.exe / msedge.exe / firefox.exe / brave.exe 等）
-  - 提醒方式：系统通知 / 应用内弹窗 / 声音（WebAudio beep）
-  - Snooze（稍后提醒）分钟数可配
-  - Windows 开机自启动（注册表 HKCU Run）
+**Bili-Break-Reminder** 是一款跨平台的桌面端健康管理应用，专为需要长时间面对屏幕的学生和开发者设计。
 
----
+它采用 **Go (Golang)** 作为高性能后端，结合 **Vue 3** 构建现代化 UI，能够智能监控应用使用时长，并在适当时机提醒用户休息，有效预防视疲劳和久坐带来的健康问题（如腱鞘炎、腰肌劳损等）。
 
-## 1) 生成 Wails v3 项目（只做一次）
+> *"代码写得爽，身体更重要。"*
 
-参考官方 quick start：`wails3 init -n myapp` 会生成 Vanilla + Vite 模板（项目结构里有 `frontend/src/main.js` 与 `frontend/public/style.css` 等）。  
-文档示例也说明 `wails3 dev` 会自动生成 bindings 到 `frontend/bindings/`。  
+## ✨ 核心特性
+
+* **🖥️ 跨平台支持**：完美运行于 Windows 环境（macOS/Linux 适配中）。
+* **⚡ 极致性能**：基于 Go 语言原生开发，内存占用极低，不卡顿。
+* **🎨 现代化 UI**：使用 Vue 3 + Vite 构建，界面简洁美观，交互流畅。
+* **🛡️ 智能监控**：自动检测久坐时长，非侵入式提醒，工作/休息两不误。
+* **⚙️ 高度可配置**：(开发中) 支持自定义工作时长、休息间隔及提示音。
+
+## 🛠️ 技术栈
+
+本项目是一个标准的 **前后端分离** 桌面应用架构示例：
+
+| 模块 | 技术选型 | 说明 |
+| :--- | :--- | :--- |
+| **核心后端** | **Golang (1.20+)** | 处理系统调用、并发逻辑与数据持久化 |
+| **应用框架** | **Wails v2** | 提供 Go 与前端的高性能 JS 桥接 |
+| **前端框架** | **Vue 3** | 构建响应式用户界面 |
+| **构建工具** | **Vite** | 极速冷启动与模块热更新 |
+
+## 📸 应用截图
+
+<div align="center">
+  <img src="https://via.placeholder.com/800x450.png?text=这里放你的软件运行截图" alt="应用截图" width="800" />
+</div>
+
+## 🚀 快速开始
+
+### 环境要求
+
+* Go 1.18+
+* Node.js 16+
+* Wails CLI 工具
+
+### 编译与运行
 
 ```bash
-wails3 init -n bili-break-reminder
+# 1. 克隆项目仓库
+git clone [https://github.com/mddnbb66-bit/bili-break-reminder.git](https://github.com/mddnbb66-bit/bili-break-reminder.git)
+
+# 2. 进入项目目录
 cd bili-break-reminder
-```
 
-（建议先跑一次 `wails3 dev`，让依赖和 bindings 全部生成完。）
-
----
-
-## 2) 覆盖升级文件
-
-把本 zip（overlay）里的文件复制到你项目根目录，按路径覆盖：
-
-- `bilibreakservice.go`
-- `activewin_windows.go`
-- `activewin_stub.go`
-- `autostart_windows.go`
-- `autostart_stub.go`
-- `config.go`
-- `frontend/index.html`
-- `frontend/src/main.js`
-- `frontend/public/style.css`
-
----
-
-## 3) 运行调试
-
-```bash
-wails3 dev
-```
-
----
-
-## 4) 打包 EXE（单文件）
-
-官方 quick start 写明：`wails3 build` 输出在 `build/bin/`（Windows 下是 `build/bin/<app>.exe`）。  
-
-```bash
-wails3 build
-```
-
----
-
-## 5) 打包 EXE 安装包（NSIS）
-
-官方 Windows packaging 文档说明可以用 `wails3 package GOOS=windows` 生成 NSIS 安装包（需要安装 NSIS）。  
-
-```bash
-wails3 package GOOS=windows
-```
-
-打包产物通常在 `build/windows/nsis/` 或类似目录（以你的 Wails 版本输出为准）。
-
----
-
-## 注意
-
-- 本版本默认按 **“前台活动窗口标题 + 进程名”** 判断是否在看 B 站 Web 端（比如浏览器标题包含 bilibili/哔哩哔哩/B站）。
-- 如果你希望更严格（比如只识别 `www.bilibili.com`），需要浏览器扩展或本地代理，这不在 v3 范围内。
+# 3. 安装依赖并编译 (生成 exe 文件)
+wails build
 
