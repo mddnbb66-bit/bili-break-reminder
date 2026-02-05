@@ -55,7 +55,7 @@
 ## 📸 应用截图
 
 <div align="center">
-  <img src="./img/9105bf43-0fdc-40cb-9356-f18d17c39279.png" alt="应用截图" width="800" />
+  <img src="https://github.com/mddnbb66-bit/bili-break-reminder/blob/main/img/9105bf43-0fdc-40cb-9356-f18d17c39279.png?raw=true" alt="应用截图" width="800" />
 </div>
 
 ## 🚀 快速开始
