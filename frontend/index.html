@@ -20,7 +20,10 @@
       </div>
 
       <div class="topbarRight">
-        <div id="statusPill" class="pill pill--stopped">未运行</div>
+        <div class="statusWrap">
+          <div class="statusLabel">状态</div>
+          <div id="statusPill" class="pill pill--stopped">未运行</div>
+        </div>
         <button id="btnStartStop" class="btn btn--primary">启动监控</button>
       </div>
     </header>
@@ -28,9 +31,15 @@
     <main class="grid">
       <!-- Left: Stats -->
       <section class="card">
-        <div class="cardTitle">实时状态</div>
+        <div class="cardHeader">
+          <div>
+            <div class="cardTitle">实时状态</div>
+            <div class="cardSub">保持健康节奏，及时休息。</div>
+          </div>
+          <div class="cardTag">Live</div>
+        </div>
 
-        <div class="stats">
+        <div class="statsGrid">
           <div class="stat">
             <div class="statLabel">本日累计</div>
             <div id="statTotal" class="statValue">00:00</div>
@@ -52,7 +61,7 @@
           </div>
         </div>
 
-        <div class="actions">
+        <div class="actions actions--split">
           <button id="btnManual" class="btn">手动提醒</button>
           <button id="btnReset" class="btn btn--ghost">重置本日累计</button>
         </div>
@@ -64,7 +73,13 @@
 
       <!-- Right: Settings -->
       <section class="card">
-        <div class="cardTitle">设置面板</div>
+        <div class="cardHeader">
+          <div>
+            <div class="cardTitle">设置面板</div>
+            <div class="cardSub">调整提醒节奏和识别规则。</div>
+          </div>
+          <div class="cardTag cardTag--soft">Config</div>
+        </div>
 
         <div class="formRow">
           <label class="label" for="intervalNumber">提醒间隔（分钟）</label>
