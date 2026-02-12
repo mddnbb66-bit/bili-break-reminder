@@ -19,6 +19,9 @@ const els = {
   intervalRange: $("intervalRange"),
   intervalNumber: $("intervalNumber"),
   intervalNote: $("intervalNote"),
+  alertLeadRange: $("alertLeadRange"),
+  alertLeadNumber: $("alertLeadNumber"),
+  toggleAutoShowNearBreak: $("toggleAutoShowNearBreak"),
   toggleSystem: $("toggleSystem"),
   togglePopup: $("togglePopup"),
   toggleSound: $("toggleSound"),
@@ -28,18 +31,31 @@ const els = {
   keywords: $("keywords"),
   processes: $("processes"),
   toggleAutoStart: $("toggleAutoStart"),
+  toggleClockAlwaysOn: $("toggleClockAlwaysOn"),
+  clockFadeAfter: $("clockFadeAfter"),
   btnSave: $("btnSave"),
   saveHint: $("saveHint"),
   modalOverlay: $("modalOverlay"),
   modalBody: $("modalBody"),
   modalOk: $("modalOk"),
   modalSnooze: $("modalSnooze"),
+  floatingClock: $("floatingClock"),
 };
 
 let state = {
   cfg: null,
   stats: null,
   dirty: false,
+};
+
+const clockState = {
+  hideTimer: null,
+  leaveTimer: null,
+  dragging: false,
+  offsetX: 0,
+  offsetY: 0,
+  x: null,
+  y: null,
 };
 
 function markDirty(on = true) {
@@ -80,6 +96,9 @@ function applyCfgToUI(cfg) {
   if (!cfg) return;
   els.intervalRange.value = String(cfg.intervalMinutes ?? 30);
   els.intervalNumber.value = String(cfg.intervalMinutes ?? 30);
+  els.alertLeadRange.value = String(cfg.clockAlertMinutes ?? 5);
+  els.alertLeadNumber.value = String(cfg.clockAlertMinutes ?? 5);
+  els.toggleAutoShowNearBreak.checked = cfg.clockAutoShowAlert ?? true;
   els.toggleSystem.checked = !!cfg.notifySystem;
   els.togglePopup.checked = !!cfg.notifyPopup;
   els.toggleSound.checked = !!cfg.notifySound;
@@ -87,11 +106,16 @@ function applyCfgToUI(cfg) {
   els.keywords.value = (cfg.keywords || []).join(", ");
   els.processes.value = (cfg.processes || []).join(", ");
   els.toggleAutoStart.checked = !!cfg.autoStart;
+  els.toggleClockAlwaysOn.checked = !!cfg.clockAlwaysOn;
+  els.clockFadeAfter.value = String(cfg.clockFadeAfterSecs ?? 20);
+  updateClockVisibility(true);
 }
 
 function collectCfgFromUI() {
   const intervalMinutes = clampInt(els.intervalNumber.value, 1, 240);
   const snoozeMinutes = clampInt(els.snoozeNumber.value, 0, 240);
+  const clockFadeAfterSecs = clampInt(els.clockFadeAfter.value, 3, 600);
+  const clockAlertMinutes = clampInt(els.alertLeadNumber.value, 1, 60);
   return {
     intervalMinutes,
     monitorEnabled: state.cfg?.monitorEnabled ?? true,
@@ -102,11 +126,140 @@ function collectCfgFromUI() {
     autoStart: !!els.toggleAutoStart.checked,
     keywords: splitList(els.keywords.value),
     processes: splitList(els.processes.value),
+    clockAlwaysOn: !!els.toggleClockAlwaysOn.checked,
+    clockFadeAfterSecs,
+    clockAlertMinutes,
+    clockAutoShowAlert: !!els.toggleAutoShowNearBreak.checked,
   };
+}
+
+function getRemainingSeconds() {
+  const n = state.stats?.nextBreakInSeconds;
+  if (typeof n !== "number") return null;
+  return Math.max(0, n);
+}
+
+function isInAlertWindow() {
+  const remaining = getRemainingSeconds();
+  if (remaining === null) return false;
+  const alertSecs = clampInt(state.cfg?.clockAlertMinutes ?? 5, 1, 60) * 60;
+  return !!state.stats?.running && remaining <= alertSecs;
+}
+
+function shouldForceShowClock() {
+  if (state.cfg?.clockAlwaysOn) return true;
+  return !!state.cfg?.clockAutoShowAlert && isInAlertWindow();
+}
+
+function updateFloatingClockFromStats() {
+  const remaining = getRemainingSeconds();
+  els.floatingClock.textContent = remaining === null ? "--:--" : fmtMMSS(remaining);
+  els.floatingClock.classList.toggle("floatingClock--alert", isInAlertWindow());
+
+  if (shouldForceShowClock()) {
+    clearClockTimers();
+    showClock();
+  }
+}
+
+function showClock() {
+  els.floatingClock.classList.add("floatingClock--visible");
+  els.floatingClock.classList.remove("floatingClock--hidden");
+}
+
+function hideClock() {
+  if (shouldForceShowClock()) {
+    showClock();
+    return;
+  }
+  els.floatingClock.classList.remove("floatingClock--visible");
+  els.floatingClock.classList.add("floatingClock--hidden");
+}
+
+function clearClockTimers() {
+  if (clockState.hideTimer) {
+    clearTimeout(clockState.hideTimer);
+    clockState.hideTimer = null;
+  }
+  if (clockState.leaveTimer) {
+    clearTimeout(clockState.leaveTimer);
+    clockState.leaveTimer = null;
+  }
+}
+
+function scheduleClockHide() {
+  if (shouldForceShowClock()) {
+    clearClockTimers();
+    showClock();
+    return;
+  }
+  if (clockState.hideTimer) clearTimeout(clockState.hideTimer);
+  const secs = clampInt(state.cfg?.clockFadeAfterSecs ?? 20, 3, 600);
+  clockState.hideTimer = setTimeout(() => hideClock(), secs * 1000);
+}
+
+function updateClockVisibility(forceShow = false) {
+  clearClockTimers();
+  if (forceShow) showClock();
+  scheduleClockHide();
+}
+
+function setClockPosition(x, y) {
+  clockState.x = x;
+  clockState.y = y;
+  els.floatingClock.style.left = `${x}px`;
+  els.floatingClock.style.top = `${y}px`;
+  els.floatingClock.style.transform = "translate(0, 0) skewX(-12deg)";
+}
+
+function wireClock() {
+  if (!els.floatingClock) return;
+  els.floatingClock.textContent = "--:--";
+  els.floatingClock.classList.add("floatingClock--visible");
+
+  const onPointerMove = (event) => {
+    if (!clockState.dragging) return;
+    const x = event.clientX - clockState.offsetX;
+    const y = event.clientY - clockState.offsetY;
+    setClockPosition(x, y);
+  };
+
+  const onPointerUp = () => {
+    clockState.dragging = false;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    scheduleClockHide();
+  };
+
+  els.floatingClock.addEventListener("pointerdown", (event) => {
+    const rect = els.floatingClock.getBoundingClientRect();
+    clockState.dragging = true;
+    clockState.offsetX = event.clientX - rect.left;
+    clockState.offsetY = event.clientY - rect.top;
+    clearClockTimers();
+    showClock();
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+  });
+
+  els.floatingClock.addEventListener("mouseenter", () => {
+    clearClockTimers();
+    showClock();
+  });
+
+  els.floatingClock.addEventListener("mouseleave", () => {
+    if (shouldForceShowClock()) return;
+    if (clockState.leaveTimer) clearTimeout(clockState.leaveTimer);
+    clockState.leaveTimer = setTimeout(() => {
+      hideClock();
+    }, 5000);
+  });
+
 }
 
 function renderStats(stats) {
   if (!stats) return;
+  updateFloatingClockFromStats();
   els.statTotal.textContent = fmtHMS(stats.totalWatchedSeconds);
   if (typeof stats.nextBreakInSeconds === "number") {
     els.statNext.textContent = fmtMMSS(stats.nextBreakInSeconds);
@@ -183,6 +336,20 @@ async function refreshOnce() {
 }
 
 function wireUI() {
+  const syncAlertLead = (from) => {
+    const v = clampInt(from.value, 1, 60);
+    els.alertLeadRange.value = String(v);
+    els.alertLeadNumber.value = String(v);
+    markDirty(true);
+    state.cfg = {
+      ...(state.cfg || {}),
+      clockAlertMinutes: v,
+      clockAutoShowAlert: !!els.toggleAutoShowNearBreak.checked,
+    };
+    updateFloatingClockFromStats();
+    updateClockVisibility(true);
+  };
+
   const syncInterval = (from) => {
     const v = clampInt(from.value, 1, 240);
     els.intervalRange.value = String(v);
@@ -193,6 +360,8 @@ function wireUI() {
 
   els.intervalRange.addEventListener("input", () => syncInterval(els.intervalRange));
   els.intervalNumber.addEventListener("input", () => syncInterval(els.intervalNumber));
+  els.alertLeadRange.addEventListener("input", () => syncAlertLead(els.alertLeadRange));
+  els.alertLeadNumber.addEventListener("input", () => syncAlertLead(els.alertLeadNumber));
 
   document.querySelectorAll(".chip[data-preset]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -209,10 +378,28 @@ function wireUI() {
     els.togglePopup,
     els.toggleSound,
     els.toggleAutoStart,
+    els.toggleClockAlwaysOn,
+    els.toggleAutoShowNearBreak,
     els.snoozeNumber,
+    els.clockFadeAfter,
     els.keywords,
     els.processes,
-  ].forEach((el) => el.addEventListener("input", () => markDirty(true)));
+  ].forEach((el) =>
+    el.addEventListener("input", () => {
+      markDirty(true);
+      if (el === els.toggleClockAlwaysOn || el === els.clockFadeAfter || el === els.toggleAutoShowNearBreak) {
+        state.cfg = {
+          ...(state.cfg || {}),
+          clockAlwaysOn: !!els.toggleClockAlwaysOn.checked,
+          clockFadeAfterSecs: clampInt(els.clockFadeAfter.value, 3, 600),
+          clockAlertMinutes: clampInt(els.alertLeadNumber.value, 1, 60),
+          clockAutoShowAlert: !!els.toggleAutoShowNearBreak.checked,
+        };
+        updateFloatingClockFromStats();
+        updateClockVisibility(true);
+      }
+    }),
+  );
 
   els.btnSave.addEventListener("click", async () => {
     els.saveHint.textContent = "保存中...";
@@ -301,6 +488,7 @@ function wireEvents() {
 }
 
 async function main() {
+  wireClock();
   wireUI();
   wireEvents();
   setTimeout(refreshOnce, 100);
