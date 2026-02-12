@@ -9,6 +9,7 @@
 </head>
 
 <body>
+  <div id="floatingClock" class="floatingClock hidden" aria-label="当前时间">00:00</div>
   <div class="app">
     <header class="topbar">
       <div class="brand">
@@ -98,6 +99,18 @@
           </div>
 
           <div class="note" id="intervalNote">最小 1 分钟（v3 修复：可往小调）</div>
+
+          <label class="labelSmall" for="alertLeadRange">距离下次休息剩余多少分钟开始警示</label>
+          <div class="intervalRow">
+            <input id="alertLeadRange" class="range" type="range" min="1" max="60" step="1" value="5" />
+            <input id="alertLeadNumber" class="num" type="number" min="1" max="60" step="1" value="5" />
+          </div>
+
+          <label class="toggle">
+            <input id="toggleAutoShowNearBreak" type="checkbox" checked />
+            <span class="toggleUi"></span>
+            <span class="toggleText">非常亮模式下，最后警示时间自动显现悬浮时间</span>
+          </label>
         </div>
 
         <div class="split"></div>
@@ -154,6 +167,23 @@
 
         <div class="formRow">
           <div class="rowTitle">系统</div>
+
+          <label class="toggle">
+            <input id="toggleClockAlwaysOn" type="checkbox" />
+            <span class="toggleUi"></span>
+            <span class="toggleText">悬浮时间常亮</span>
+          </label>
+
+          <div class="inline">
+            <label class="labelSmall" for="clockFadeAfter">多少秒后变透明</label>
+            <input id="clockFadeAfter" class="num" type="number" min="3" max="600" step="1" value="20" />
+          </div>
+
+          <label class="labelSmall" for="clockOpacityRange">悬浮时间透明度</label>
+          <div class="intervalRow">
+            <input id="clockOpacityRange" class="range" type="range" min="10" max="100" step="1" value="100" />
+            <input id="clockOpacityNumber" class="num" type="number" min="10" max="100" step="1" value="100" />
+          </div>
 
           <label class="toggle">
             <input id="toggleAutoStart" type="checkbox" />
