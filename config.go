@@ -36,19 +36,31 @@ type Config struct {
 	// Matching rules
 	Keywords  []string `json:"keywords"`  // if window title contains any keyword -> considered Bilibili
 	Processes []string `json:"processes"` // if process name is in this list -> considered browser; leave empty to allow any
+
+	// Clock overlay
+	ClockAlwaysOn      bool `json:"clockAlwaysOn"`      // keep overlay clock visible at full opacity
+	ClockFadeAfterSecs int  `json:"clockFadeAfterSecs"` // fade clock after inactivity seconds
+	ClockAlertMinutes  int  `json:"clockAlertMinutes"`  // when remaining time <= this value, clock enters alert style
+	ClockAutoShowAlert bool `json:"clockAutoShowAlert"` // if not always-on, auto reveal clock during alert window
+	ClockOpacity       int  `json:"clockOpacity"`       // visible opacity percentage, 10~100
 }
 
 func defaultConfig() Config {
 	return Config{
-		IntervalMinutes: 30,
-		MonitorEnabled:  true,
-		NotifySystem:    true,
-		NotifyPopup:     true,
-		NotifySound:     false,
-		SnoozeMinutes:   10,
-		AutoStart:       false,
-		Keywords:        []string{"bilibili", "哔哩哔哩", "b站"},
-		Processes:       []string{"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe"},
+		IntervalMinutes:    30,
+		MonitorEnabled:     true,
+		NotifySystem:       true,
+		NotifyPopup:        true,
+		NotifySound:        false,
+		SnoozeMinutes:      10,
+		AutoStart:          false,
+		Keywords:           []string{"bilibili", "哔哩哔哩", "b站"},
+		Processes:          []string{"chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe"},
+		ClockAlwaysOn:      false,
+		ClockFadeAfterSecs: 20,
+		ClockAlertMinutes:  5,
+		ClockAutoShowAlert: true,
+		ClockOpacity:       100,
 	}
 }
 
@@ -64,6 +76,24 @@ func (c *Config) Normalize() {
 	}
 	if c.SnoozeMinutes > 240 {
 		c.SnoozeMinutes = 240
+	}
+	if c.ClockFadeAfterSecs < 3 {
+		c.ClockFadeAfterSecs = 3
+	}
+	if c.ClockFadeAfterSecs > 600 {
+		c.ClockFadeAfterSecs = 600
+	}
+	if c.ClockAlertMinutes < 1 {
+		c.ClockAlertMinutes = 1
+	}
+	if c.ClockAlertMinutes > 60 {
+		c.ClockAlertMinutes = 60
+	}
+	if c.ClockOpacity < 10 {
+		c.ClockOpacity = 10
+	}
+	if c.ClockOpacity > 100 {
+		c.ClockOpacity = 100
 	}
 	// Normalize strings
 	c.Keywords = normalizeStringSlice(c.Keywords)

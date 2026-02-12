@@ -44,6 +44,23 @@ func main() {
 		URL:              "/",
 	})
 
+	// 4.1 创建悬浮计时窗口：独立窗口，可拖拽到主窗口外
+	app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "clock-overlay",
+		Title:            "Bili Break Timer",
+		Width:            360,
+		Height:           132,
+		AlwaysOnTop:      true,
+		DisableResize:    true,
+		Frameless:        true,
+		BackgroundType:   application.BackgroundTypeTransparent,
+		BackgroundColour: application.NewRGBA(0, 0, 0, 0),
+		InitialPosition:  application.WindowXY,
+		X:                1200,
+		Y:                140,
+		URL:              "/clock.html",
+	})
+
 	// 🔥🔥🔥 5. 关键修复：把窗口传给服务，没有这行，标题调试和弹窗都无效！🔥🔥🔥
 	biliSvc.SetMainWindow(mainWindow)
 
