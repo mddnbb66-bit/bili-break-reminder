@@ -89,6 +89,47 @@ export class Config {
              */
             this["processes"] = [];
         }
+        if (!("clockAlwaysOn" in $$source)) {
+            /**
+             * Clock overlay
+             * keep overlay clock visible at full opacity
+             * @member
+             * @type {boolean}
+             */
+            this["clockAlwaysOn"] = false;
+        }
+        if (!("clockFadeAfterSecs" in $$source)) {
+            /**
+             * fade clock after inactivity seconds
+             * @member
+             * @type {number}
+             */
+            this["clockFadeAfterSecs"] = 0;
+        }
+        if (!("clockAlertMinutes" in $$source)) {
+            /**
+             * when remaining time <= this value, clock enters alert style
+             * @member
+             * @type {number}
+             */
+            this["clockAlertMinutes"] = 0;
+        }
+        if (!("clockAutoShowAlert" in $$source)) {
+            /**
+             * if not always-on, auto reveal clock during alert window
+             * @member
+             * @type {boolean}
+             */
+            this["clockAutoShowAlert"] = false;
+        }
+        if (!("clockOpacity" in $$source)) {
+            /**
+             * visible opacity percentage, 10~100
+             * @member
+             * @type {number}
+             */
+            this["clockOpacity"] = 0;
+        }
 
         Object.assign(this, $$source);
     }
