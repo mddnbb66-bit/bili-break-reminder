@@ -47,22 +47,8 @@ func main() {
 	// 🔥🔥🔥 5. 关键修复：把窗口传给服务，没有这行，标题调试和弹窗都无效！🔥🔥🔥
 	biliSvc.SetMainWindow(mainWindow)
 
-	// 6. 运行
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name:                "overlay",
-		Title:               "",
-		Width:               360,
-		Height:              160,
-		AlwaysOnTop:         true,
-		Frameless:           true,
-		DisableResize:       true,
-		BackgroundType:      application.BackgroundTypeTransparent,
-		BackgroundColour:    application.NewRGBA(0, 0, 0, 0),
-		URL:                 "/overlay.html",
-		MinimiseButtonState: application.ButtonHidden,
-		MaximiseButtonState: application.ButtonHidden,
-		CloseButtonState:    application.ButtonHidden,
-	})
+	// 6. 创建悬浮倒计时窗口（单独函数，降低主流程冲突）
+	createOverlayWindow(app)
 
 	// 7. 运行
 	if err := app.Run(); err != nil {
