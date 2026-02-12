@@ -34,6 +34,22 @@ body{
     linear-gradient(180deg, var(--bg0), var(--bg1));
 }
 
+body.overlayBody{
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+
+body.overlayBody .floatingClock{
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: skewX(-12deg);
+}
+
 .floatingClock{
   position: fixed;
   top: 50%;
