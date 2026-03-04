@@ -78,5 +78,5 @@ git clone [https://github.com/mddnbb66-bit/bili-break-reminder.git](https://gith
 cd bili-break-reminder
 
 # 3. 安装依赖并编译 (生成 exe 文件)
-wails build
+wails3 build
 
