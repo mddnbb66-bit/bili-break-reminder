@@ -11,6 +11,7 @@ const els = {
   statusPill: $("statusPill"),
   btnStartStop: $("btnStartStop"),
   statTotal: $("statTotal"),
+  statCumulative: $("statCumulative"),
   statNext: $("statNext"),
   statWindow: $("statWindow"),
   statProcess: $("statProcess"),
@@ -261,6 +262,7 @@ function renderStats(stats) {
   if (!stats) return;
   updateFloatingClockFromStats();
   els.statTotal.textContent = fmtHMS(stats.totalWatchedSeconds);
+  els.statCumulative.textContent = fmtHMS(stats.cumulativeWatchedSeconds);
   if (typeof stats.nextBreakInSeconds === "number") {
     els.statNext.textContent = fmtMMSS(stats.nextBreakInSeconds);
   } else {
