@@ -175,6 +175,13 @@ export class Stats {
              */
             this["totalWatchedSeconds"] = 0;
         }
+        if (!("cumulativeWatchedSeconds" in $$source)) {
+            /**
+             * @member
+             * @type {number}
+             */
+            this["cumulativeWatchedSeconds"] = 0;
+        }
         if (!("sinceLastBreakSeconds" in $$source)) {
             /**
              * @member

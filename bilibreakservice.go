@@ -13,15 +13,16 @@ import (
 
 // Stats is pushed to the frontend via events and is also queryable via GetStats().
 type Stats struct {
-	Running               bool   `json:"running"`
-	Watching              bool   `json:"watching"`
-	TotalWatchedSeconds   int    `json:"totalWatchedSeconds"`
-	SinceLastBreakSeconds int    `json:"sinceLastBreakSeconds"`
-	NextBreakInSeconds    int    `json:"nextBreakInSeconds"`
-	ActiveTitle           string `json:"activeTitle"`
-	ActiveProcess         string `json:"activeProcess"`
-	Day                   string `json:"day"`
-	SnoozedUntil          string `json:"snoozedUntil,omitempty"` // RFC3339 if snoozed
+	Running                  bool   `json:"running"`
+	Watching                 bool   `json:"watching"`
+	TotalWatchedSeconds      int    `json:"totalWatchedSeconds"`
+	CumulativeWatchedSeconds int    `json:"cumulativeWatchedSeconds"`
+	SinceLastBreakSeconds    int    `json:"sinceLastBreakSeconds"`
+	NextBreakInSeconds       int    `json:"nextBreakInSeconds"`
+	ActiveTitle              string `json:"activeTitle"`
+	ActiveProcess            string `json:"activeProcess"`
+	Day                      string `json:"day"`
+	SnoozedUntil             string `json:"snoozedUntil,omitempty"` // RFC3339 if snoozed
 }
 
 type RemindPayload struct {
@@ -31,15 +32,17 @@ type RemindPayload struct {
 }
 
 type BiliBreakService struct {
-	mu sync.RWMutex
-	cfg Config
-	stats Stats
-	day   string
-	snoozedUntil time.Time
-	ctx    context.Context
-	cancel context.CancelFunc
-	notifier *notifications.NotificationService
-	mainWindow *application.WebviewWindow
+	mu                 sync.RWMutex
+	cfg                Config
+	stats              Stats
+	day                string
+	snoozedUntil       time.Time
+	ctx                context.Context
+	cancel             context.CancelFunc
+	persistedStats     PersistedStats
+	lastStatsPersistAt time.Time
+	notifier           *notifications.NotificationService
+	mainWindow         *application.WebviewWindow
 }
 
 func NewBiliBreakService(notifier *notifications.NotificationService) *BiliBreakService {
@@ -65,6 +68,12 @@ func (s *BiliBreakService) ServiceStartup(ctx context.Context, _ application.Ser
 		s.mu.Unlock()
 	}
 	_ = SetAutoStart(s.cfg.AutoStart)
+	if persisted, err := LoadPersistedStats(); err == nil {
+		s.mu.Lock()
+		s.persistedStats = persisted
+		s.stats.CumulativeWatchedSeconds = persisted.CumulativeWatchedSeconds
+		s.mu.Unlock()
+	}
 	go s.loop()
 	s.emitConfig()
 	s.emitStats()
@@ -72,6 +81,7 @@ func (s *BiliBreakService) ServiceStartup(ctx context.Context, _ application.Ser
 }
 
 func (s *BiliBreakService) ServiceShutdown() error {
+	s.persistStats(true)
 	if s.cancel != nil {
 		s.cancel()
 	}
@@ -160,8 +170,12 @@ func (s *BiliBreakService) ResetToday() {
 }
 
 func (s *BiliBreakService) Snooze(minutes int) {
-	if minutes < 0 { minutes = 0 }
-	if minutes > 240 { minutes = 240 }
+	if minutes < 0 {
+		minutes = 0
+	}
+	if minutes > 240 {
+		minutes = 240
+	}
 	s.setWindowTop(false)
 	s.mu.Lock()
 	if minutes > 0 {
@@ -225,7 +239,9 @@ func (s *BiliBreakService) tick() {
 	}
 
 	intervalSec := cfg.IntervalMinutes * 60
-	if intervalSec < 60 { intervalSec = 60 }
+	if intervalSec < 60 {
+		intervalSec = 60
+	}
 
 	s.mu.Lock()
 	s.stats.Running = running
@@ -240,10 +256,13 @@ func (s *BiliBreakService) tick() {
 	}
 	if watching {
 		s.stats.TotalWatchedSeconds++
+		s.stats.CumulativeWatchedSeconds++
 		s.stats.SinceLastBreakSeconds++
 	}
 	next := intervalSec - s.stats.SinceLastBreakSeconds
-	if next < 0 { next = 0 }
+	if next < 0 {
+		next = 0
+	}
 	s.stats.NextBreakInSeconds = next
 
 	canRemind := now.After(snoozedUntil) || snoozedUntil.IsZero()
@@ -251,12 +270,39 @@ func (s *BiliBreakService) tick() {
 		s.stats.SinceLastBreakSeconds = 0
 		s.stats.NextBreakInSeconds = intervalSec
 		s.mu.Unlock()
+		s.persistStats(false)
 		s.fireReminder("时间到了")
 		s.emitStats()
 		return
 	}
 	s.mu.Unlock()
+	s.persistStats(false)
 	s.emitStats()
+}
+
+func (s *BiliBreakService) persistStats(force bool) {
+	s.mu.Lock()
+	current := s.stats.CumulativeWatchedSeconds
+	stored := s.persistedStats.CumulativeWatchedSeconds
+	now := time.Now()
+	if !force {
+		if current == stored {
+			s.mu.Unlock()
+			return
+		}
+		if !s.lastStatsPersistAt.IsZero() && now.Sub(s.lastStatsPersistAt) < 5*time.Second {
+			s.mu.Unlock()
+			return
+		}
+	}
+	s.persistedStats.CumulativeWatchedSeconds = current
+	s.lastStatsPersistAt = now
+	data := s.persistedStats
+	s.mu.Unlock()
+
+	if err := SavePersistedStats(data); err != nil {
+		fmt.Println("save persisted stats failed:", err)
+	}
 }
 func (s *BiliBreakService) matchesDebug(cfg Config, titleLower, processLower string) (bool, string) {
 	browsers := []string{
@@ -355,7 +401,9 @@ func (s *BiliBreakService) fireReminder(reason string) {
 
 func (s *BiliBreakService) emitStats() {
 	app := application.Get()
-	if app == nil { return }
+	if app == nil {
+		return
+	}
 	s.mu.RLock()
 	stats := s.stats
 	s.mu.RUnlock()
@@ -364,7 +412,9 @@ func (s *BiliBreakService) emitStats() {
 
 func (s *BiliBreakService) emitConfig() {
 	app := application.Get()
-	if app == nil { return }
+	if app == nil {
+		return
+	}
 	s.mu.RLock()
 	cfg := s.cfg
 	s.mu.RUnlock()
@@ -372,7 +422,9 @@ func (s *BiliBreakService) emitConfig() {
 }
 
 func formatDuration(seconds int) string {
-	if seconds < 0 { seconds = 0 }
+	if seconds < 0 {
+		seconds = 0
+	}
 	h := seconds / 3600
 	m := (seconds % 3600) / 60
 	s := seconds % 60

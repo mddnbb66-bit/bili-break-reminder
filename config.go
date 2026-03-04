@@ -12,6 +12,7 @@ const (
 	AppName      = "BiliBreakReminder"
 	ConfigFolder = "BiliBreakReminder"
 	ConfigFile   = "config.json"
+	StatsFile    = "stats.json"
 )
 
 // Config contains user settings persisted on disk.
@@ -42,6 +43,10 @@ type Config struct {
 	ClockFadeAfterSecs int  `json:"clockFadeAfterSecs"` // fade clock after inactivity seconds
 	ClockAlertMinutes  int  `json:"clockAlertMinutes"`  // when remaining time <= this value, clock enters alert style
 	ClockAutoShowAlert bool `json:"clockAutoShowAlert"` // if not always-on, auto reveal clock during alert window
+}
+
+type PersistedStats struct {
+	CumulativeWatchedSeconds int `json:"cumulativeWatchedSeconds"`
 }
 
 func defaultConfig() Config {
@@ -116,6 +121,54 @@ func configPath() (string, error) {
 		return "", err
 	}
 	return filepath.Join(base, ConfigFolder, ConfigFile), nil
+}
+
+func statsPath() (string, error) {
+	base, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, ConfigFolder, StatsFile), nil
+}
+
+func LoadPersistedStats() (PersistedStats, error) {
+	p, err := statsPath()
+	if err != nil {
+		return PersistedStats{}, err
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return PersistedStats{}, nil
+		}
+		return PersistedStats{}, err
+	}
+	var stats PersistedStats
+	if err := json.Unmarshal(b, &stats); err != nil {
+		return PersistedStats{}, nil
+	}
+	if stats.CumulativeWatchedSeconds < 0 {
+		stats.CumulativeWatchedSeconds = 0
+	}
+	return stats, nil
+}
+
+func SavePersistedStats(stats PersistedStats) error {
+	if stats.CumulativeWatchedSeconds < 0 {
+		stats.CumulativeWatchedSeconds = 0
+	}
+	p, err := statsPath()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(stats, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(p, b, 0o644)
 }
 
 func LoadConfig() (Config, error) {
