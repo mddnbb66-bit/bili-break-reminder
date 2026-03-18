@@ -17,6 +17,9 @@ const els = {
   statProcess: $("statProcess"),
   btnManual: $("btnManual"),
   btnReset: $("btnReset"),
+  btnClearNext: $("btnClearNext"),
+  btnCycleCumulativeFormat: $("btnCycleCumulativeFormat"),
+  cumulativeFormatHint: $("cumulativeFormatHint"),
   intervalRange: $("intervalRange"),
   intervalNumber: $("intervalNumber"),
   intervalNote: $("intervalNote"),
@@ -43,10 +46,13 @@ const els = {
   floatingClock: $("floatingClock"),
 };
 
+const cumulativeDisplayModes = ["hms", "day", "month", "year", "smart"];
+
 let state = {
   cfg: null,
   stats: null,
   dirty: false,
+  cumulativeDisplayMode: "hms",
 };
 
 const clockState = {
@@ -91,6 +97,61 @@ function fmtMMSS(totalSeconds) {
   const m = Math.floor(s / 60);
   const ss = s % 60;
   return `${String(m).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+}
+
+function fmtDecimal(value) {
+  if (value >= 100) return Math.round(value).toString();
+  if (value >= 10) return value.toFixed(1).replace(/\.0$/, "");
+  return value.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function getCumulativeModeLabel(mode) {
+  switch (mode) {
+    case "day":
+      return "累计格式：天";
+    case "month":
+      return "累计格式：月";
+    case "year":
+      return "累计格式：年";
+    case "smart":
+      return "累计格式：智能";
+    default:
+      return "累计格式：时分秒";
+  }
+}
+
+function formatCumulativeSeconds(totalSeconds, mode = state.cumulativeDisplayMode) {
+  const s = Math.max(0, Number(totalSeconds || 0));
+  const daySeconds = 24 * 3600;
+  const monthSeconds = 30 * daySeconds;
+  const yearSeconds = 365 * daySeconds;
+
+  switch (mode) {
+    case "day":
+      return `${fmtDecimal(s / daySeconds)} 天`;
+    case "month":
+      return `${fmtDecimal(s / monthSeconds)} 月`;
+    case "year":
+      return `${fmtDecimal(s / yearSeconds)} 年`;
+    case "smart":
+      if (s >= yearSeconds) return `${fmtDecimal(s / yearSeconds)} 年`;
+      if (s >= monthSeconds) return `${fmtDecimal(s / monthSeconds)} 月`;
+      if (s >= daySeconds) return `${fmtDecimal(s / daySeconds)} 天`;
+      return fmtHMS(s);
+    default:
+      return fmtHMS(s);
+  }
+}
+
+function cycleCumulativeDisplayMode() {
+  const currentIndex = cumulativeDisplayModes.indexOf(state.cumulativeDisplayMode);
+  const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % cumulativeDisplayModes.length : 0;
+  state.cumulativeDisplayMode = cumulativeDisplayModes[nextIndex];
+  els.btnCycleCumulativeFormat.textContent = getCumulativeModeLabel(state.cumulativeDisplayMode);
+  els.cumulativeFormatHint.textContent = state.cumulativeDisplayMode === "smart"
+    ? "智能模式会自动切到天 / 月 / 年。"
+    : "可在时分秒 / 天 / 月 / 年 / 智能之间切换。";
+  if (state.stats) renderStats(state.stats);
 }
 
 function applyCfgToUI(cfg) {
@@ -262,7 +323,8 @@ function renderStats(stats) {
   if (!stats) return;
   updateFloatingClockFromStats();
   els.statTotal.textContent = fmtHMS(stats.totalWatchedSeconds);
-  els.statCumulative.textContent = fmtHMS(stats.cumulativeWatchedSeconds);
+  els.statCumulative.textContent = formatCumulativeSeconds(stats.cumulativeWatchedSeconds);
+  els.btnCycleCumulativeFormat.textContent = getCumulativeModeLabel(state.cumulativeDisplayMode);
   if (typeof stats.nextBreakInSeconds === "number") {
     els.statNext.textContent = fmtMMSS(stats.nextBreakInSeconds);
   } else {
@@ -446,6 +508,18 @@ function wireUI() {
     }
   });
 
+  els.btnClearNext.addEventListener("click", async () => {
+    try {
+      await App.Snooze(0);
+    } catch (e) {
+      console.error(e);
+    }
+  });
+
+  els.btnCycleCumulativeFormat.addEventListener("click", () => {
+    cycleCumulativeDisplayMode();
+  });
+
   els.btnSnooze.addEventListener("click", async () => {
     const mins = clampInt(els.snoozeNumber.value, 0, 240);
     try {
@@ -493,6 +567,8 @@ async function main() {
   wireClock();
   wireUI();
   wireEvents();
+  els.btnCycleCumulativeFormat.textContent = getCumulativeModeLabel(state.cumulativeDisplayMode);
+  els.cumulativeFormatHint.textContent = "可在时分秒 / 天 / 月 / 年 / 智能之间切换。";
   setTimeout(refreshOnce, 100);
 }
 

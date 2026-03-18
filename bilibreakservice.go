@@ -180,8 +180,15 @@ func (s *BiliBreakService) Snooze(minutes int) {
 	s.mu.Lock()
 	if minutes > 0 {
 		s.snoozedUntil = time.Now().Add(time.Duration(minutes) * time.Minute)
+	} else {
+		s.snoozedUntil = time.Time{}
 	}
 	s.stats.SinceLastBreakSeconds = 0
+	intervalSec := s.cfg.IntervalMinutes * 60
+	if intervalSec < 60 {
+		intervalSec = 60
+	}
+	s.stats.NextBreakInSeconds = intervalSec
 	s.mu.Unlock()
 	s.emitStats()
 }
