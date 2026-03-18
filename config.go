@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	AppName      = "BiliBreakReminder"
-	ConfigFolder = "BiliBreakReminder"
-	ConfigFile   = "config.json"
-	StatsFile    = "stats.json"
+	AppName                         = "BiliBreakReminder"
+	ConfigFolder                    = "BiliBreakReminder"
+	ConfigFile                      = "config.json"
+	StatsFile                       = "stats.json"
+	InitialCumulativeWatchedSeconds = 32 * 60 * 60
 )
 
 // Config contains user settings persisted on disk.
@@ -47,6 +48,12 @@ type Config struct {
 
 type PersistedStats struct {
 	CumulativeWatchedSeconds int `json:"cumulativeWatchedSeconds"`
+}
+
+func defaultPersistedStats() PersistedStats {
+	return PersistedStats{
+		CumulativeWatchedSeconds: InitialCumulativeWatchedSeconds,
+	}
 }
 
 func defaultConfig() Config {
@@ -139,13 +146,13 @@ func LoadPersistedStats() (PersistedStats, error) {
 	b, err := os.ReadFile(p)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return PersistedStats{}, nil
+			return defaultPersistedStats(), nil
 		}
 		return PersistedStats{}, err
 	}
 	var stats PersistedStats
 	if err := json.Unmarshal(b, &stats); err != nil {
-		return PersistedStats{}, nil
+		return defaultPersistedStats(), nil
 	}
 	if stats.CumulativeWatchedSeconds < 0 {
 		stats.CumulativeWatchedSeconds = 0
