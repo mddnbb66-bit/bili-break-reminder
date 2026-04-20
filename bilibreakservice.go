@@ -107,6 +107,12 @@ func (s *BiliBreakService) setWindowTop(top bool) {
 	}
 }
 
+// DailyPoint represents the study seconds for a single calendar day.
+type DailyPoint struct {
+	Date    string `json:"date"`
+	Seconds int    `json:"seconds"`
+}
+
 // ===== Public methods =====
 
 func (s *BiliBreakService) GetConfig() Config {
@@ -133,6 +139,31 @@ func (s *BiliBreakService) GetStats() Stats {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.stats
+}
+
+// GetDailyHistory returns the study seconds for the last `days` calendar days (7–30),
+// ordered from oldest to newest. Days with no tracked activity have Seconds = 0.
+func (s *BiliBreakService) GetDailyHistory(days int) []DailyPoint {
+	if days < 7 {
+		days = 7
+	}
+	if days > 30 {
+		days = 30
+	}
+	now := time.Now()
+	s.mu.RLock()
+	dailySeconds := s.persistedStats.DailySeconds
+	s.mu.RUnlock()
+	result := make([]DailyPoint, days)
+	for i := 0; i < days; i++ {
+		day := now.AddDate(0, 0, -(days-1-i)).Format("2006-01-02")
+		secs := 0
+		if dailySeconds != nil {
+			secs = dailySeconds[day]
+		}
+		result[i] = DailyPoint{Date: day, Seconds: secs}
+	}
+	return result
 }
 
 func (s *BiliBreakService) Start() error {

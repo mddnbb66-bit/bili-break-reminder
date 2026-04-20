@@ -480,6 +480,35 @@ body{
   margin-top: 12px;
 }
 
+/* ===== Chart Card ===== */
+.chartCard{
+  margin-top: 16px;
+}
+
+.chartRangeRow{
+  display:flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.chartRangeBtn--active{
+  border-color: rgba(96,165,250,0.60) !important;
+  background: rgba(96,165,250,0.22) !important;
+  color: rgba(191,219,254,0.98) !important;
+}
+
+.chartWrap{
+  width: 100%;
+  min-height: 180px;
+}
+
+.studyChart{
+  display: block;
+  width: 100%;
+  height: 210px;
+  overflow: visible;
+}
+
 /* Responsive */
 @media (max-width: 980px){
   .grid{ grid-template-columns: 1fr; }

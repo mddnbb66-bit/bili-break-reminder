@@ -46,6 +46,7 @@ const els = {
   modalOk: $("modalOk"),
   modalSnooze: $("modalSnooze"),
   floatingClock: $("floatingClock"),
+  studyChart: $("studyChart"),
 };
 
 const cumulativeDisplayModes = ["hms", "day", "month", "year", "smart"];
@@ -557,6 +558,12 @@ function wireEvents() {
   Events.On("bili:stats", (event) => {
     state.stats = event.data;
     renderStats(event.data);
+    // Refresh chart at most every 30s to avoid excessive redraws
+    const now = Date.now();
+    if (!wireEvents._lastChartRefresh || now - wireEvents._lastChartRefresh > 30000) {
+      wireEvents._lastChartRefresh = now;
+      refreshChart();
+    }
   });
 
   Events.On("bili:config", (event) => {
@@ -571,13 +578,210 @@ function wireEvents() {
   });
 }
 
+// ===== Study history chart =====
+
+const chartState = {
+  days: 7,
+};
+
+function fmtMinutes(totalSeconds) {
+  return Math.round(Math.max(0, Number(totalSeconds || 0)) / 60);
+}
+
+function isoDateLabel(dateStr, compact) {
+  // dateStr: "2006-01-02"
+  const parts = dateStr.split("-");
+  if (parts.length < 3) return dateStr;
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  if (compact) return `${m}/${d}`;
+  return `${m}月${d}日`;
+}
+
+function drawChart(points) {
+  const svg = els.studyChart;
+  if (!svg) return;
+
+  // Clear previous content
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+  const W = svg.clientWidth || 700;
+  const H = 210;
+  const padL = 48;
+  const padR = 16;
+  const padT = 18;
+  const padB = 36;
+  const innerW = W - padL - padR;
+  const innerH = H - padT - padB;
+
+  const ns = "http://www.w3.org/2000/svg";
+  const mk = (tag, attrs) => {
+    const el = document.createElementNS(ns, tag);
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+
+  // Gradient definition
+  const defs = mk("defs", {});
+  const gradId = "chartGrad";
+  const grad = mk("linearGradient", { id: gradId, x1: "0", y1: "0", x2: "0", y2: "1" });
+  grad.appendChild(mk("stop", { offset: "0%", "stop-color": "rgba(96,165,250,0.38)" }));
+  grad.appendChild(mk("stop", { offset: "100%", "stop-color": "rgba(96,165,250,0.02)" }));
+  defs.appendChild(grad);
+  svg.appendChild(defs);
+
+  const maxSecs = Math.max(...points.map((p) => p.seconds), 60);
+  const n = points.length;
+
+  const xOf = (i) => n > 1 ? padL + (i / (n - 1)) * innerW : padL + innerW / 2;
+  const yOf = (secs) => padT + innerH - (secs / maxSecs) * innerH;
+
+  // Grid lines + Y labels (4 lines)
+  const yTicks = 4;
+  for (let t = 0; t <= yTicks; t++) {
+    const secs = (maxSecs / yTicks) * t;
+    const y = yOf(secs);
+    svg.appendChild(mk("line", {
+      x1: padL, y1: y, x2: padL + innerW, y2: y,
+      stroke: "rgba(255,255,255,0.07)", "stroke-width": "1",
+      "stroke-dasharray": t === 0 ? "" : "4 4",
+    }));
+    const mins = Math.round(secs / 60);
+    const label = mins >= 60 ? `${(mins / 60).toFixed(1)}h` : `${mins}m`;
+    const txt = mk("text", {
+      x: padL - 6, y: y + 4,
+      "text-anchor": "end",
+      fill: "rgba(255,255,255,0.45)",
+      "font-size": "11",
+      "font-family": "ui-monospace,monospace",
+    });
+    txt.textContent = label;
+    svg.appendChild(txt);
+  }
+
+  // Area fill path
+  const compact = n > 14;
+  const linePoints = points.map((p, i) => `${xOf(i)},${yOf(p.seconds)}`).join(" ");
+  const areaD = `M${xOf(0)},${yOf(points[0].seconds)} `
+    + points.slice(1).map((p, i) => `L${xOf(i + 1)},${yOf(p.seconds)}`).join(" ")
+    + ` L${xOf(n - 1)},${padT + innerH} L${padL},${padT + innerH} Z`;
+  svg.appendChild(mk("path", {
+    d: areaD,
+    fill: `url(#${gradId})`,
+  }));
+
+  // Line
+  const lineD = `M${xOf(0)},${yOf(points[0].seconds)} `
+    + points.slice(1).map((p, i) => `L${xOf(i + 1)},${yOf(p.seconds)}`).join(" ");
+  svg.appendChild(mk("path", {
+    d: lineD,
+    fill: "none",
+    stroke: "rgba(96,165,250,0.90)",
+    "stroke-width": "2",
+    "stroke-linejoin": "round",
+    "stroke-linecap": "round",
+  }));
+
+  // Dots + X labels
+  const today = new Date().toISOString().slice(0, 10);
+  points.forEach((p, i) => {
+    const x = xOf(i);
+    const y = yOf(p.seconds);
+    const isToday = p.date === today;
+
+    // Only draw dot if it has data or is today
+    if (p.seconds > 0 || isToday) {
+      if (isToday) {
+        svg.appendChild(mk("circle", {
+          cx: x, cy: y, r: "6",
+          fill: "rgba(96,165,250,0.20)",
+          stroke: "rgba(96,165,250,0.90)",
+          "stroke-width": "2",
+        }));
+      }
+      svg.appendChild(mk("circle", {
+        cx: x, cy: y, r: isToday ? "4" : "3",
+        fill: isToday ? "#60a5fa" : "rgba(96,165,250,0.80)",
+      }));
+    }
+
+    // X-axis label — show every label when ≤14 days, every other when >14
+    if (!compact || i % 2 === 0 || i === n - 1) {
+      const txt = mk("text", {
+        x: x, y: H - 6,
+        "text-anchor": "middle",
+        fill: isToday ? "rgba(191,219,254,0.95)" : "rgba(255,255,255,0.40)",
+        "font-size": "10",
+        "font-family": "ui-monospace,monospace",
+        "font-weight": isToday ? "700" : "400",
+      });
+      txt.textContent = isoDateLabel(p.date, compact);
+      svg.appendChild(txt);
+    }
+
+    // Tooltip-style value above dot for non-zero days
+    if (p.seconds > 0) {
+      const mins = fmtMinutes(p.seconds);
+      const label = mins >= 60 ? `${(mins / 60).toFixed(1)}h` : `${mins}m`;
+      const txt = mk("text", {
+        x: x, y: y - 9,
+        "text-anchor": "middle",
+        fill: "rgba(191,219,254,0.82)",
+        "font-size": "10",
+        "font-family": "ui-monospace,monospace",
+        "font-weight": "600",
+      });
+      txt.textContent = label;
+      svg.appendChild(txt);
+    }
+  });
+}
+
+async function refreshChart() {
+  try {
+    const points = await App.GetDailyHistory(chartState.days);
+    drawChart(points);
+  } catch {
+    // If backend is unavailable (e.g. dev preview), draw with empty data
+    const today = new Date();
+    const points = Array.from({ length: chartState.days }, (_, i) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() - (chartState.days - 1 - i));
+      return { date: d.toISOString().slice(0, 10), seconds: 0 };
+    });
+    drawChart(points);
+  }
+}
+
+function wireChart() {
+  document.querySelectorAll(".chartRangeBtn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".chartRangeBtn").forEach((b) =>
+        b.classList.remove("chartRangeBtn--active"),
+      );
+      btn.classList.add("chartRangeBtn--active");
+      chartState.days = parseInt(btn.getAttribute("data-days"), 10);
+      refreshChart();
+    });
+  });
+
+  // Redraw on resize
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => refreshChart(), 80);
+  });
+}
+
 async function main() {
   wireClock();
   wireUI();
+  wireChart();
   wireEvents();
   els.btnCycleCumulativeFormat.textContent = getCumulativeModeLabel(state.cumulativeDisplayMode);
   els.cumulativeFormatHint.textContent = "可在时分秒 / 天 / 月 / 年 / 智能之间切换。";
   setTimeout(refreshOnce, 100);
+  setTimeout(refreshChart, 200);
 }
 
 main();

@@ -211,6 +211,24 @@
       </section>
     </main>
 
+    <!-- Chart Card: full-width study history -->
+    <section class="card chartCard">
+      <div class="cardHeader">
+        <div>
+          <div class="cardTitle">学习时长趋势</div>
+          <div class="cardSub">近期每日学习时长折线图</div>
+        </div>
+        <div class="chartRangeRow">
+          <button class="chip chartRangeBtn chartRangeBtn--active" data-days="7">7 天</button>
+          <button class="chip chartRangeBtn" data-days="14">14 天</button>
+          <button class="chip chartRangeBtn" data-days="30">30 天</button>
+        </div>
+      </div>
+      <div class="chartWrap">
+        <svg id="studyChart" class="studyChart" aria-label="每日学习时长折线图"></svg>
+      </div>
+    </section>
+
     <!-- Modal -->
     <div id="modalOverlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="modal">
