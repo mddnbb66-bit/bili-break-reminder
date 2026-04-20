@@ -336,7 +336,9 @@ func computeDailyAvg(records map[string]int) int {
 	return total / len(records)
 }
 
-// computeWeeklyAvg returns the average watched seconds per day over the last 7 days.
+// computeWeeklyAvg returns the average watched seconds per day over the last 7 days
+// (today plus the 6 preceding days). Days without records are treated as 0 seconds,
+// so the result is always divided by 7 regardless of how many days have data.
 func computeWeeklyAvg(records map[string]int, today string) int {
 	todayTime, err := time.Parse("2006-01-02", today)
 	if err != nil {
