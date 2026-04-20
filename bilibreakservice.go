@@ -23,6 +23,8 @@ type Stats struct {
 	ActiveProcess            string `json:"activeProcess"`
 	Day                      string `json:"day"`
 	SnoozedUntil             string `json:"snoozedUntil,omitempty"` // RFC3339 if snoozed
+	DailyAvgSeconds          int    `json:"dailyAvgSeconds"`
+	WeeklyAvgSeconds         int    `json:"weeklyAvgSeconds"`
 }
 
 type RemindPayload struct {
@@ -72,6 +74,9 @@ func (s *BiliBreakService) ServiceStartup(ctx context.Context, _ application.Ser
 		s.mu.Lock()
 		s.persistedStats = persisted
 		s.stats.CumulativeWatchedSeconds = persisted.CumulativeWatchedSeconds
+		today := time.Now().Format("2006-01-02")
+		s.stats.DailyAvgSeconds = computeDailyAvg(persisted.DailyRecords)
+		s.stats.WeeklyAvgSeconds = computeWeeklyAvg(persisted.DailyRecords, today)
 		s.mu.Unlock()
 	}
 	go s.loop()
@@ -291,9 +296,10 @@ func (s *BiliBreakService) persistStats(force bool) {
 	s.mu.Lock()
 	current := s.stats.CumulativeWatchedSeconds
 	stored := s.persistedStats.CumulativeWatchedSeconds
+	today := time.Now().Format("2006-01-02")
 	now := time.Now()
 	if !force {
-		if current == stored {
+		if current == stored && s.stats.TotalWatchedSeconds == s.persistedStats.DailyRecords[today] {
 			s.mu.Unlock()
 			return
 		}
@@ -303,6 +309,12 @@ func (s *BiliBreakService) persistStats(force bool) {
 		}
 	}
 	s.persistedStats.CumulativeWatchedSeconds = current
+	if s.persistedStats.DailyRecords == nil {
+		s.persistedStats.DailyRecords = make(map[string]int)
+	}
+	s.persistedStats.DailyRecords[today] = s.stats.TotalWatchedSeconds
+	s.stats.DailyAvgSeconds = computeDailyAvg(s.persistedStats.DailyRecords)
+	s.stats.WeeklyAvgSeconds = computeWeeklyAvg(s.persistedStats.DailyRecords, today)
 	s.lastStatsPersistAt = now
 	data := s.persistedStats
 	s.mu.Unlock()
@@ -310,6 +322,32 @@ func (s *BiliBreakService) persistStats(force bool) {
 	if err := SavePersistedStats(data); err != nil {
 		fmt.Println("save persisted stats failed:", err)
 	}
+}
+
+// computeDailyAvg returns the average watched seconds per active day.
+func computeDailyAvg(records map[string]int) int {
+	if len(records) == 0 {
+		return 0
+	}
+	total := 0
+	for _, v := range records {
+		total += v
+	}
+	return total / len(records)
+}
+
+// computeWeeklyAvg returns the average watched seconds per day over the last 7 days.
+func computeWeeklyAvg(records map[string]int, today string) int {
+	todayTime, err := time.Parse("2006-01-02", today)
+	if err != nil {
+		return 0
+	}
+	total := 0
+	for i := 0; i < 7; i++ {
+		day := todayTime.AddDate(0, 0, -i).Format("2006-01-02")
+		total += records[day]
+	}
+	return total / 7
 }
 func (s *BiliBreakService) matchesDebug(cfg Config, titleLower, processLower string) (bool, string) {
 	browsers := []string{

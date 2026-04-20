@@ -13,6 +13,8 @@ const els = {
   statTotal: $("statTotal"),
   statCumulative: $("statCumulative"),
   statNext: $("statNext"),
+  statDailyAvg: $("statDailyAvg"),
+  statWeeklyAvg: $("statWeeklyAvg"),
   statWindow: $("statWindow"),
   statProcess: $("statProcess"),
   btnManual: $("btnManual"),
@@ -325,6 +327,8 @@ function renderStats(stats) {
   els.statTotal.textContent = fmtHMS(stats.totalWatchedSeconds);
   els.statCumulative.textContent = formatCumulativeSeconds(stats.cumulativeWatchedSeconds);
   els.btnCycleCumulativeFormat.textContent = getCumulativeModeLabel(state.cumulativeDisplayMode);
+  els.statDailyAvg.textContent = fmtHMS(stats.dailyAvgSeconds ?? 0);
+  els.statWeeklyAvg.textContent = fmtHMS(stats.weeklyAvgSeconds ?? 0);
   if (typeof stats.nextBreakInSeconds === "number") {
     els.statNext.textContent = fmtMMSS(stats.nextBreakInSeconds);
   } else {

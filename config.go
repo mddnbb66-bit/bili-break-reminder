@@ -47,12 +47,14 @@ type Config struct {
 }
 
 type PersistedStats struct {
-	CumulativeWatchedSeconds int `json:"cumulativeWatchedSeconds"`
+	CumulativeWatchedSeconds int            `json:"cumulativeWatchedSeconds"`
+	DailyRecords             map[string]int `json:"dailyRecords"` // "2006-01-02" -> seconds
 }
 
 func defaultPersistedStats() PersistedStats {
 	return PersistedStats{
 		CumulativeWatchedSeconds: InitialCumulativeWatchedSeconds,
+		DailyRecords:             make(map[string]int),
 	}
 }
 
@@ -156,6 +158,9 @@ func LoadPersistedStats() (PersistedStats, error) {
 	}
 	if stats.CumulativeWatchedSeconds < 0 {
 		stats.CumulativeWatchedSeconds = 0
+	}
+	if stats.DailyRecords == nil {
+		stats.DailyRecords = make(map[string]int)
 	}
 	return stats, nil
 }
