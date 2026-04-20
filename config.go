@@ -47,7 +47,8 @@ type Config struct {
 }
 
 type PersistedStats struct {
-	CumulativeWatchedSeconds int `json:"cumulativeWatchedSeconds"`
+	CumulativeWatchedSeconds int            `json:"cumulativeWatchedSeconds"`
+	DailySeconds             map[string]int `json:"dailySeconds,omitempty"` // "2006-01-02" -> seconds
 }
 
 func defaultPersistedStats() PersistedStats {

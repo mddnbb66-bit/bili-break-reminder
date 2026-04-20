@@ -13,6 +13,8 @@ const els = {
   statTotal: $("statTotal"),
   statCumulative: $("statCumulative"),
   statNext: $("statNext"),
+  statDailyAvg: $("statDailyAvg"),
+  statWeeklyAvg: $("statWeeklyAvg"),
   statWindow: $("statWindow"),
   statProcess: $("statProcess"),
   btnManual: $("btnManual"),
@@ -330,6 +332,12 @@ function renderStats(stats) {
   } else {
     els.statNext.textContent = "--:--";
   }
+  els.statDailyAvg.textContent = typeof stats.dailyAvgSeconds === "number" && stats.dailyAvgSeconds > 0
+    ? fmtHMS(stats.dailyAvgSeconds)
+    : "--:--";
+  els.statWeeklyAvg.textContent = typeof stats.weeklyAvgSeconds === "number" && stats.weeklyAvgSeconds > 0
+    ? fmtHMS(stats.weeklyAvgSeconds)
+    : "--:--";
   els.statWindow.textContent = stats.activeTitle || "--";
   els.statProcess.textContent = stats.activeProcess || "--";
 
