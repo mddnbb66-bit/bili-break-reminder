@@ -23,6 +23,8 @@ type Stats struct {
 	ActiveProcess            string `json:"activeProcess"`
 	Day                      string `json:"day"`
 	SnoozedUntil             string `json:"snoozedUntil,omitempty"` // RFC3339 if snoozed
+	DailyAvgSeconds          int    `json:"dailyAvgSeconds"`        // average seconds per active day
+	WeeklyAvgSeconds         int    `json:"weeklyAvgSeconds"`       // average seconds per day over last 7 days
 }
 
 type RemindPayload struct {
@@ -105,6 +107,12 @@ func (s *BiliBreakService) setWindowTop(top bool) {
 	}
 }
 
+// DailyPoint represents the study seconds for a single calendar day.
+type DailyPoint struct {
+	Date    string `json:"date"`
+	Seconds int    `json:"seconds"`
+}
+
 // ===== Public methods =====
 
 func (s *BiliBreakService) GetConfig() Config {
@@ -131,6 +139,31 @@ func (s *BiliBreakService) GetStats() Stats {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.stats
+}
+
+// GetDailyHistory returns the study seconds for the last `days` calendar days (7–30),
+// ordered from oldest to newest. Days with no tracked activity have Seconds = 0.
+func (s *BiliBreakService) GetDailyHistory(days int) []DailyPoint {
+	if days < 7 {
+		days = 7
+	}
+	if days > 30 {
+		days = 30
+	}
+	now := time.Now()
+	s.mu.RLock()
+	dailySeconds := s.persistedStats.DailySeconds
+	s.mu.RUnlock()
+	result := make([]DailyPoint, days)
+	for i := 0; i < days; i++ {
+		day := now.AddDate(0, 0, -(days-1-i)).Format("2006-01-02")
+		secs := 0
+		if dailySeconds != nil {
+			secs = dailySeconds[day]
+		}
+		result[i] = DailyPoint{Date: day, Seconds: secs}
+	}
+	return result
 }
 
 func (s *BiliBreakService) Start() error {
@@ -265,7 +298,13 @@ func (s *BiliBreakService) tick() {
 		s.stats.TotalWatchedSeconds++
 		s.stats.CumulativeWatchedSeconds++
 		s.stats.SinceLastBreakSeconds++
+		if s.persistedStats.DailySeconds == nil {
+			s.persistedStats.DailySeconds = make(map[string]int)
+		}
+		s.persistedStats.DailySeconds[day]++
 	}
+	s.stats.DailyAvgSeconds = computeDailyAvg(s.persistedStats.DailySeconds)
+	s.stats.WeeklyAvgSeconds = computeWeeklyAvg(s.persistedStats.DailySeconds, now)
 	next := intervalSec - s.stats.SinceLastBreakSeconds
 	if next < 0 {
 		next = 0
@@ -439,4 +478,26 @@ func formatDuration(seconds int) string {
 		return fmt.Sprintf("%02d:%02d:%02d", h, m, s)
 	}
 	return fmt.Sprintf("%02d:%02d", m, s)
+}
+
+// computeDailyAvg returns the average seconds per active day across all recorded days.
+func computeDailyAvg(dailySeconds map[string]int) int {
+	if len(dailySeconds) == 0 {
+		return 0
+	}
+	total := 0
+	for _, v := range dailySeconds {
+		total += v
+	}
+	return total / len(dailySeconds)
+}
+
+// computeWeeklyAvg returns the average seconds per day over the last 7 calendar days.
+func computeWeeklyAvg(dailySeconds map[string]int, now time.Time) int {
+	total := 0
+	for i := 0; i < 7; i++ {
+		day := now.AddDate(0, 0, -i).Format("2006-01-02")
+		total += dailySeconds[day]
+	}
+	return total / 7
 }
