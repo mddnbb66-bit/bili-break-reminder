@@ -13,7 +13,7 @@ const (
 	ConfigFolder                    = "BiliBreakReminder"
 	ConfigFile                      = "config.json"
 	StatsFile                       = "stats.json"
-	InitialCumulativeWatchedSeconds = 32 * 60 * 60
+	InitialCumulativeWatchedSeconds = 96*3600 + 25*60 // 96h 25min
 )
 
 // Config contains user settings persisted on disk.

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestDefaultPersistedStatsStartsAt32Hours(t *testing.T) {
+func TestDefaultPersistedStatsStartsAtInitialBaseline(t *testing.T) {
 	stats := defaultPersistedStats()
 	if stats.CumulativeWatchedSeconds != InitialCumulativeWatchedSeconds {
 		t.Fatalf("expected default cumulative seconds %d, got %d", InitialCumulativeWatchedSeconds, stats.CumulativeWatchedSeconds)
